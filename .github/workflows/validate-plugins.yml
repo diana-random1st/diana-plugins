@@ -1,0 +1,34 @@
+name: validate-plugins
+
+# Guards the plugin boundary. Deliberately cheap and deliberately separate from
+# the s5d job: a change that only touches plugin content must be validatable
+# without building Rust, because that is the whole point of content being
+# content — a plugin change must never require a Diana change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - '.claude-plugin/marketplace.json'
+      - 'scripts/validate-plugins.py'
+      - '.github/workflows/validate-plugins.yml'
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - '.claude-plugin/marketplace.json'
+      - 'scripts/validate-plugins.py'
+      - '.github/workflows/validate-plugins.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate plugins
+        run: python3 scripts/validate-plugins.py

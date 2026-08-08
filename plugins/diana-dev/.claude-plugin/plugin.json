@@ -1,0 +1,8 @@
+{
+  "name": "diana-dev",
+  "description": "Development workflow \u2014 review, debug, deploy, framework guidance, browser and docs research.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Roman Voronin"
+  }
+}

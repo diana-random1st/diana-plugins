@@ -1,0 +1,39 @@
+{
+  "name": "diana-plugins",
+  "description": "Diana content plugins — skills, agents, commands and MCP declarations. Consumable by `diana plugin` and by `claude plugin marketplace add` alike.",
+  "owner": {
+    "name": "Roman Voronin"
+  },
+  "plugins": [
+    {
+      "name": "diana-dev",
+      "description": "Development workflow — review, debug, deploy, framework guidance, browser and docs research.",
+      "source": "./plugins/diana-dev",
+      "version": "1.0.0",
+      "category": "development",
+      "author": {
+        "name": "Roman Voronin"
+      }
+    },
+    {
+      "name": "diana-apple",
+      "description": "Apple platform release machinery — signing, notarization, store submission, and the macOS host itself.",
+      "source": "./plugins/diana-apple",
+      "version": "1.0.0",
+      "category": "release",
+      "author": {
+        "name": "Roman Voronin"
+      }
+    },
+    {
+      "name": "diana-docs",
+      "description": "Document and Google Workspace toolchain.",
+      "source": "./plugins/diana-docs",
+      "version": "1.0.0",
+      "category": "documents",
+      "author": {
+        "name": "Roman Voronin"
+      }
+    }
+  ]
+}
