@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# @s5d:component comp.diana.plugin-boundary-gate
 """Validate the plugin marketplace.
 
 Run it locally exactly as CI does:
