@@ -89,8 +89,42 @@ def check_marketplace(plugins: dict[str, dict]) -> None:
             fail(f"marketplace.json: {name} source is '{source}'")
 
 
+FRONTMATTER = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n", re.S)
+FM_KEY = re.compile(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$")
+
+
+def frontmatter_keys(text: str) -> dict[str, str] | None:
+    """Top-level keys of the YAML frontmatter block, or None if there is none.
+
+    Deliberately a small parser rather than PyYAML: this runs in the plugin
+    repositories, where the whole point is that validating content needs no
+    toolchain. Nested keys are ignored — only the top level is contractual.
+    """
+    match = FRONTMATTER.match(text)
+    if match is None:
+        return None
+    keys: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        if line[:1] in (" ", "\t", "#") or not line.strip():
+            continue
+        key = FM_KEY.match(line)
+        if key:
+            keys[key.group(1)] = key.group(2).strip().strip("\"'")
+    return keys
+
+
 def check_skills(plugins: dict[str, dict]) -> None:
-    """No skill name may be claimed by two plugins."""
+    """Skill names are unique, and every skill carries a usable contract.
+
+    The uniqueness rule and the contract rule fail the same way at runtime —
+    the skill is simply not there — which is why both are hard failures rather
+    than warnings. `sync()` reports a duplicate as a collision and links
+    neither. `rebuild_registry()` deliberately degrades a skill with broken
+    frontmatter to name-only rather than dropping it, so a missing description
+    never surfaces as an error: the skill stays installed and stops being
+    routable, because `skill-route` matches on name, description and triggers.
+    A plugin must not be able to ship that quietly.
+    """
     owner: dict[str, str] = {}
     total = 0
     for name in plugins:
@@ -99,7 +133,14 @@ def check_skills(plugins: dict[str, dict]) -> None:
             notes.append(f"{name}: no skills/ directory")
             continue
         for skill in sorted(os.listdir(skills_dir)):
-            if not os.path.isfile(os.path.join(skills_dir, skill, "SKILL.md")):
+            skill_dir = os.path.join(skills_dir, skill)
+            if not os.path.isdir(skill_dir) or skill.startswith("."):
+                continue
+            manifest = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(manifest):
+                # `plugin add` counts a skill by its directory, so this one is
+                # installed and linked, and then invisible to every consumer.
+                fail(f"{name}/{skill}: directory has no SKILL.md")
                 continue
             total += 1
             if skill in owner:
@@ -108,6 +149,24 @@ def check_skills(plugins: dict[str, dict]) -> None:
                 fail(f"skill '{skill}' is claimed by both {owner[skill]} and {name}")
             else:
                 owner[skill] = name
+
+            with open(manifest, encoding="utf-8", errors="replace") as handle:
+                keys = frontmatter_keys(handle.read())
+            if keys is None:
+                fail(f"{name}/{skill}/SKILL.md: no YAML frontmatter block")
+                continue
+            for required in ("name", "description"):
+                if not keys.get(required):
+                    fail(f"{name}/{skill}/SKILL.md: frontmatter has no {required}")
+            declared = keys.get("name")
+            if declared and declared != skill:
+                # The link is created under the directory name; discovery routes
+                # on the declared name. When they disagree, `Skill(<name>)`
+                # resolves to nothing.
+                fail(
+                    f"{name}/{skill}/SKILL.md: declares name '{declared}', "
+                    f"directory is '{skill}'"
+                )
     notes.append(f"{total} skills across {len(plugins)} plugins")
 
 
