@@ -102,6 +102,7 @@ These bundle ID prefixes are never auto-cleaned by Mole and must not be touched 
 - **Cursor** (`com.todesktop.*` — Cursor uses ToDesktop)
 - `com.ollama.ollama`, `Ollama` — installed models (often 10+ GB but user data)
 - `com.lmstudio.lmstudio`, `LM Studio`
+- `Gemini`
 - `com.perplexity.Perplexity`
 - `Antigravity`
 - Custom AI editors with chat state

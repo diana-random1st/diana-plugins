@@ -79,7 +79,7 @@ done
 All regenerate on next build. Use the tool's own cleanup command when available — they handle index integrity better than `rm`.
 
 ```bash
-# Node per-invocation package cache (heavy)
+# npm npx (per-invocation packages — heavy)
 rm -rf ~/.npm/_npx
 
 # Playwright/Puppeteer old browser versions
