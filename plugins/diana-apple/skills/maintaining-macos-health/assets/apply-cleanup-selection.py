@@ -143,7 +143,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("selection", help="path to cleanup-selection-<ts>.json")
     ap.add_argument("--dry-run", action="store_true", help="print actions, don't execute")
     ap.add_argument("--continue-on-error", action="store_true",
-                    help="keep going if an item fails (default: continue)")
+                    help="keep going if an item fails (default: stop at the first "
+                         "failure — later items are NOT applied)")
     args = ap.parse_args(argv[1:])
 
     sel_path = Path(args.selection)

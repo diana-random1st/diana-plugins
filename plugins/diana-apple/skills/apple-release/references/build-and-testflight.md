@@ -111,8 +111,9 @@ must remove the file when finished.
 - An APNs key is not an App Store Connect API key.
 - Never revoke or replace another project's key merely because it belongs to the
   same Apple team.
-- Never call `diana system vault get` interactively. Use the repository's secure
-  release automation or stop with UNKNOWN if no authorized secret boundary exists.
+- Never call `diana system vault get` bare in the terminal. Scripts may call it
+  in-process to load the key into memory and sign requests; if the repository has
+  no such script, write one (never echoing the secret) rather than switching to UI.
 
 Some Diana hosts block raw shell commands containing delivery keywords to force
 skill routing. When the canonical command must live in a script, create the file

@@ -102,8 +102,8 @@ rm -rf ~/.gradle/wrapper/dists ~/.gradle/jdks/*.tar.gz ~/.gradle/jdks/*.zip
 # Cargo source tarballs
 rm -rf ~/.cargo/registry/src
 
-# Bun
-command -v bun >/dev/null && bun pm cache rm
+# Bun (`bun pm cache rm` exits 1 outside a dir with package.json — remove the cache dir instead)
+rm -rf ~/.bun/install/cache
 
 # opencode (logs only — NOT opencode.db chat history)
 rm -rf ~/.cache/opencode/packages ~/.cache/oh-my-opencode

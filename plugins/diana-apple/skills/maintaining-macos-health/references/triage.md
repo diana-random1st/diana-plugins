@@ -56,6 +56,25 @@ Symptoms: `df` shows < 20 % free, user complains "out of space".
 
 The canonical incident hit ~8 % free, well below the 10 % critical threshold. APFS purgeable can lag — `diskutil info` "Container Free" is the real number.
 
+#### Mole first, manual tiers second
+
+Start every disk-driven cleanup with `mo clean --dry-run` and `mo purge --dry-run` (`~` as cwd). Mole covers the cache/log tiers with its own guards — on 2026-10-01 it found 16.6 GB the manual tiers missed, while hand-built commands broke (`bun pm cache rm` fails outside a project). Hand-built items are only for what Mole does not touch: app-private models (e.g. `~/Library/Application Support/Feynt/models`), `.terraform` provider caches, renamed `target-*` dirs, untracked data dumps.
+
+#### Measuring where the space went — three traps (incident 2026-10-01)
+
+1. **Always `du -x`.** `~/Library/Developer/CoreDevice/DeviceFS` is an fskit `devicefs` mount of connected iPhones; plain `du` reported 272 GB of *phone* storage as local and sent the audit down a false lead. Before naming any directory as a hog, check `mount | grep -v '^/dev/disk3'` for mounts inside it.
+2. **`du -sh *` silently drops entries.** Under TCC, entries fail with no output line, so per-entry sums came out far below the parent total (`~/src` 185 GB → listing showed ~85). Measure with a per-entry loop that prints every name, and report `Operation not permitted` dirs (`MobileSync` = iPhone backups, `CloudDocs`, `FileProvider`, `Knowledge`) as **unmeasured**, never as small.
+3. **One parallel pass, not a dozen serial ones.** Run a single background scan of all roots (`~/src`, `~/Library/Application Support`, `~/Library/Developer`, `~/.cache`, model dirs, Docker `system df`), then present the full list once. Serial probing made a simple cleanup take an hour.
+
+```bash
+for r in ~/src ~/"Library/Application Support" ~/Library/Developer ~/.cache ~/Library/Caches; do
+  ( for d in "$r"/* "$r"/.[!.]*; do [ -e "$d" ] || continue
+      kb=$(du -skx "$d" 2>/dev/null | cut -f1); echo "${kb:-UNMEASURED}	$d"; done ) &
+done; wait
+```
+
+Before applying, check what is running (`pgrep -lf "xcodebuild|GradleDaemon|codex|docker"`) and exclude caches in use — e.g. the DerivedData of an active `xcodebuild`.
+
 ### B. Memory-driven
 
 Symptoms: Mac slow, beachballs, swap > 6 GB, fans running.
