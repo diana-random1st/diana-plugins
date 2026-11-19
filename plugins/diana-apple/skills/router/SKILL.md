@@ -5,111 +5,67 @@ description: "Manage Vodafone Smart Router (Huawei HG8247X6) via telnet WAP CLI.
 
 # router — Huawei HG8247X6 Telnet Management
 
-Manage the home router via telnet WAP CLI (superuser). LAN-only access (`TELNETWanEnable="0"`).
+Home router, WAP CLI over telnet at 192.168.1.1 (LAN only, `TELNETWanEnable="0"`).
+Every call goes through one script; do not hand-write expect or telnet sessions.
 
-## Connection
-
-**Single command — connect, escalate to SU, run command, exit:**
 ```bash
-expect -c '
-  set timeout 10
-  log_user 1
-  spawn telnet 192.168.1.1
-  expect "Login:"
-  send "root\r"
-  expect "Password:"
-  send "admin\r"
-  expect "WAP>"
-  send "su\r"
-  expect "SU_WAP>"
-  send "COMMAND_HERE\r"
-  expect {
-    -exact "---- More" { send " "; exp_continue }
-    "SU_WAP>" {}
-  }
-  send "quit\r"
-  expect eof
-'
+R=~/.claude/skills/router/scripts/router.py
+$R devices                                   # DHCP clients: IP, MAC, SSID/LAN port, host
+$R devices --json
+$R run "display sysinfo"                     # any WAP CLI command, verbatim
+$R run "display waninfo all" "display optic" # several commands, one session
+$R run "display ?"                           # help: list subcommands
 ```
 
-**Multiple commands in one session** — chain `send/expect` blocks:
-```bash
-expect -c '
-  set timeout 10
-  log_user 1
-  spawn telnet 192.168.1.1
-  expect "Login:"; send "root\r"
-  expect "Password:"; send "admin\r"
-  expect "WAP>"; send "su\r"
-  expect "SU_WAP>"
-  send "COMMAND_1\r"
-  expect { -exact "---- More" { send " "; exp_continue } "SU_WAP>" {} }
-  send "COMMAND_2\r"
-  expect { -exact "---- More" { send " "; exp_continue } "SU_WAP>" {} }
-  send "quit\r"
-  expect eof
-'
-```
+The script logs in, runs `su`, answers `---- More` pages, and quits. Credentials:
+vault `ROUTER_TELNET_USER` / `ROUTER_TELNET_PASSWORD`, read by the script. Never put
+them in a command, and never extract them from anywhere to get past the secguard hook.
 
-**Important:** Replace `COMMAND_HERE`, `COMMAND_1`, `COMMAND_2` with actual WAP CLI commands.
+Exit codes: 0 ok · 2 unreachable or timed out (`--timeout 20` for long output) ·
+3 login/su failed · 4 another telnet session is open (one allowed; `--wait-session`
+retries once after 60 s) · 5 the router rejected a command (`ERROR::...`).
 
-## Command Reference
-
-### Monitoring (read-only)
+## Command reference (checked on this firmware 2026-11-19)
 
 | What | Command |
 |------|---------|
-| System info (uptime, firmware, model) | `display sysinfo` |
-| Connected devices (IP, MAC, hostname) | `display connection all` |
-| WAN status (external IP, gateway, DNS) | `display waninfo all` |
-| WiFi networks (SSID, channel, clients) | `display wifi information` |
-| WiFi settings (SSID, password, encryption) | `display wifi basicset` |
+| System info (CPU, memory, time) | `display sysinfo` (`display version`, `display deviceInfo` for firmware/model) |
+| Connected devices | `$R devices` (= `display dhcp server user all`); `display user device` adds IPv6 and SSID. NOT `display connection all`: that is the NAT conntrack table |
+| WAN status | `display waninfo all` (`display waninfo all detail` for IPs, gateway, DNS) |
+| WiFi networks | `display wifi information`; associated clients `display wlan stainfo` |
+| WiFi settings of one SSID | `display wlan config wlaninst N` (N = 1-8). Prints the WiFi key: send to /dev/null or filter, do not show it |
 | Optical fiber (TX/RX power, temp) | `display optic` |
-| DHCP leases | `display dhcp server user all` |
-| LAN configuration | `display lan info` |
-| Port forwarding rules | `display nat port mapping` |
-| DNS servers | `display dns server` |
-| MAC address filter | `display wifi macfilter` |
-| Firewall rules | `display firewall rule` |
-| UPnP mappings | `display upnp` |
-| ARP table | `display arp` |
-| Routing table | `display route` |
-| VLAN config | `display vlan` |
-| All available commands | `?` |
-| Subcommands for X | `X ?` (e.g. `display ?`) |
+| LAN DHCP | `display dhcp server pool all`, `display dhcp server static` |
+| Port forwarding | `display upnp mapping`; static rules `display nat port mapping internal-ip <LAN IP>` (syntax from `?`, output not checked) |
+| DNS | `display dnsserver static domain` (static entries only) |
+| MAC filter | `display lan mac filter`, `display wifi filter` |
+| Firewall | `display firewall level`, `display firewall rule` |
+| ARP / neighbours | `display ip neigh` |
+| Routing table | `display ip route` |
 
-### Management (destructive — CONFIRM FIRST)
+Not on this firmware: `display wifi basicset`, `display lan info`, `display dns server`,
+`display wifi macfilter`, `display upnp`, `display arp`, `display route`, `display vlan`.
+Discover others with `$R run "X ?"`.
 
-| What | Command | Safety |
+## Management — ASK ROMAN FIRST
+
+| What | Command | Effect |
 |------|---------|--------|
-| Reboot router | `reset` | **ASK before running** — disconnects all devices ~2min |
-| Packet capture | `trafficdump` | Safe, read-only |
-| Save config | `save` | Safe |
-
-### Custom commands
-
-Any WAP CLI command can be run verbatim. Use `?` to discover. Use `COMMAND ?` for help on a specific command.
-
-## Pagination
-
-Some commands produce long output with `---- More ( Press 'Q' to break ) ----`. The expect script handles this automatically by sending space to continue. If output is still truncated, increase `set timeout`.
-
-## Session Limits
-
-Router allows max 1 telnet session. If you get "The number of sessions exceeds the specifications", a stale session exists. Wait ~60 seconds for it to time out, or the router auto-cleans idle sessions.
+| Reboot | `$R run reset --allow-reboot` | every device offline ~2 min; the script refuses `reset`/`reboot`/`restore` without the flag |
+| Save config | `$R run save` | |
+| Packet capture | `trafficdump` | read-only |
 
 ## Troubleshooting
 
-| Issue | Fix |
-|-------|-----|
-| Connection refused | Router rebooting or telnet disabled. Wait 2 min after reboot. |
-| Login failed | Credentials: root / admin. If changed, check `~/src/huawei-router-mcp/hw_ctree.xml` |
-| Session limit | Wait 60s for stale session timeout |
-| Command not found | Run `?` to list all commands. Some need `su` first. |
-| Truncated output | Increase `set timeout 30` in expect script |
+| Exit / symptom | Fix |
+|----------------|-----|
+| 2, connection refused | router rebooting or telnet disabled; wait 2 min after a reboot |
+| 3 | credentials changed: compare with `~/src/archive/huawei-router-mcp/hw_ctree.xml` |
+| 4 | a stale session; wait ~60 s or `--wait-session` |
+| 5 | wrong command or missing parameter; `$R run "<command> ?"` shows the syntax |
 
-## Related Files
+## Related files
 
-- **Config backup**: `~/src/huawei-router-mcp/hw_ctree.xml` (modified), `hw_ctree_original.xml` (original)
-- **Password tool**: `~/src/huawei-router-mcp/huawei_decrypt.py` — decrypt/encrypt Huawei `$2...$` passwords
-- **Old MCP server**: `~/src/huawei-router-mcp/server.py` — HTTP-scraping approach (archived, not in use)
+- Config backup: `~/src/archive/huawei-router-mcp/hw_ctree.xml` (modified), `hw_ctree_original.xml` (original)
+- Huawei `$2...$` password decrypt/encrypt: `~/src/archive/huawei-router-mcp/huawei_decrypt.py`
+- Old HTTP-scraping MCP server (archived, unused): `~/src/archive/huawei-router-mcp/server.py`

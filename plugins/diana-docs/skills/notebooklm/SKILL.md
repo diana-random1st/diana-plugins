@@ -12,12 +12,13 @@ contracts:
 
 # NotebookLM
 
-All operations go through `nlm` CLI directly. Use noun-first style.
+All operations go through `nlm` CLI directly (v0.9.14). Use noun-first style. Full flag reference
+for agents: `nlm --ai` (or `nlm <noun> <verb> --help`) — read it instead of guessing enum values.
 
 ## Auth
 
-If any command returns auth errors: `nlm login` (interactive browser).
-Check status: `nlm auth status`.
+Check: `nlm login --check`. On auth errors: `nlm login` (interactive browser).
+There is no `nlm auth` command.
 
 ## Core Workflow
 
@@ -121,8 +122,8 @@ nlm download slide-deck <notebook-id> --id <artifact-id> --format pptx
 nlm download report <notebook-id> --id <artifact-id> --output report.md
 
 # Quiz/Flashcards (formats: json | markdown | html)
-nlm download quiz <notebook-id> <artifact-id> --format html
-nlm download flashcards <notebook-id> <artifact-id> --format markdown
+nlm download quiz <notebook-id> --id <artifact-id> --format html
+nlm download flashcards <notebook-id> --id <artifact-id> --format markdown
 
 # Infographic → PNG
 nlm download infographic <notebook-id> --id <artifact-id>
@@ -137,7 +138,8 @@ nlm download mind-map <notebook-id> --id <artifact-id>
 ## Research (Find New Sources)
 
 ```bash
-# Start web research (--notebook-id required)
+# Start web research (--notebook-id required); --auto-import waits and imports in one call
+nlm research start "quantum computing 2026" --notebook-id <id> --auto-import
 nlm research start "quantum computing 2026" --notebook-id <id>
 nlm research start "query" --notebook-id <id> --mode deep    # ~5min, ~40-80 sources
 nlm research start "query" --notebook-id <id> --source drive  # search Google Drive

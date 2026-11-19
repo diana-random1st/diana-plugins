@@ -5,60 +5,32 @@ description: Systematic debugging methodology — reproduce, isolate, diagnose r
 
 # Diana Systematic Debugging
 
-Root-cause first. No guessing, no shotgun fixes.
+Root cause first. No guessing, no shotgun fixes.
 
-## Methodology
+## Before the first hypothesis
 
-### Phase 1: Reproduce
-1. Get exact error message/behavior description
-2. Identify reproduction steps
-3. Run the failing command/test and capture FULL output
-4. Confirm: can we reproduce consistently?
+1. `recall` the symptom in Hindsight (`bank_id: diana`): most failures here were seen before.
+2. `graphify-out/` exists → query the graph for the failing module before grepping.
+3. Read the repo's AGENTS.md / CLAUDE.md and any HANDOFF*.md for known traps.
 
-### Phase 2: Isolate
-1. **Read the error literally** — what does it actually say?
-2. **Narrow scope**: which file, function, line?
-3. **Check prerequisites**: dependencies installed? Config correct? Environment set up?
-4. **Binary search**: if large scope, bisect to find the breaking change
-   - `git bisect` for regressions
-   - Comment out sections for isolation
+## Loop
 
-### Phase 3: Diagnose
-1. **Form hypothesis** — one specific theory about the cause
-2. **Test hypothesis** — add logging, assertions, or minimal test case
-3. **Verify** — does the evidence support the hypothesis?
-4. If hypothesis wrong → form new one. DO NOT try random fixes.
-
-### Phase 4: Fix
-1. **Smallest possible change** that addresses root cause
-2. **Verify fix**: run the original failing command → should pass
-3. **Check for regressions**: run related tests
-4. **Explain**: why did this happen, why does this fix work
+1. **Reproduce.** Run the failing command, capture the full output, note where it ran (local, dev pod, device). A remote env → reproduce there read-only first (e.g. `kubectl -n dev exec deploy/<name> -- python -c '…'`).
+2. **Isolate.** Read the error literally; narrow to file:line; a regression → `git bisect run <test-cmd>` (https://git-scm.com/docs/git-bisect).
+3. **Diagnose.** One hypothesis at a time, each turned into a check: assert, log line, minimal test. Wrong → next hypothesis, never a random fix.
+4. **Fix.** Smallest change at the root cause. Rerun the original failing command, then the related tests.
 
 ## Rules
 
-- Same error 2+ times → STOP workarounds. Go back to Phase 2.
-- Never propose a fix without understanding the cause.
-- Mark findings: [VERIFIED] (tested), [INFERRED] (logical), [SPECULATIVE] (needs testing).
-- If stuck after 3 hypotheses → step back, re-read error, check assumptions.
-- Log debugging steps for future reference.
+- Same error twice → stop, back to Isolate. The `circuit-breaker` hook blocks the third identical failing command anyway.
+- Tag findings [VERIFIED] (tested), [INFERRED] (logical), [SPECULATIVE] (needs a test).
+- No error suppression, no "it's the environment" without evidence, restart/rebuild only when evidence points to stale state.
+- Stuck after 3 hypotheses → re-read the error, list your assumptions, test each one.
 
-## Anti-patterns (DO NOT)
-
-- ❌ "Try this and see if it works" without theory
-- ❌ Multiple changes at once (can't tell what fixed it)
-- ❌ Suppressing errors instead of fixing cause
-- ❌ Blaming environment without evidence
-- ❌ Restarting/rebuilding as first step (do this only if evidence points to stale state)
-
-## Output format
+## Close
 
 ```
-## Debug Report
-
-**Symptom**: [exact error]
-**Root Cause**: [verified cause]
-**Fix**: [what was changed and why]
-**Verification**: [test/command that proves fix works]
-**Prevention**: [how to avoid this in future, if applicable]
+Symptom → Root cause → Fix → Verification (command) → Prevention
 ```
+
+A root cause that is a durable trap → `retain` it (tag `infra` or `procedure`). Work that will not finish in this session → `handoff` skill.

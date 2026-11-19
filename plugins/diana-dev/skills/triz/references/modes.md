@@ -8,7 +8,7 @@ The core 8-step workflow in SKILL.md is the same in every mode. Each mode adds t
 
 For any stuck problem, including non-engineering ones. Skip the formal matrix.
 
-- Step 5 substitution: instead of the 39×39 matrix, scan the 40 principles (principles.md) and pick the 3–4 that map by analogy. Lean on the "most-frequently-used" shortlist first.
+- Step 5 substitution: instead of the 39×39 matrix, scan the 40 principles (https://www.triz40.com/aff_Principles_TRIZ.php) and pick the 3–4 that map by analogy. Start with the ones the matrix names most often: 35, 10, 1, 28, 2, 15, 19, 18, 32, 13.
 - Keep the contradiction and IFR steps — they do most of the work even without the matrix.
 - Resources = anything already present and unused: time, space, existing data, people, side-effects, idle capacity.
 

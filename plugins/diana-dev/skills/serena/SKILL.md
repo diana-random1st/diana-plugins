@@ -6,6 +6,8 @@ allowed-tools: Bash
 
 # Serena
 
+**State on 2026-11-18 (re-check, do not trust):** `serena` CLI 1.5.1 is installed (`~/.local/bin/serena`), but `diana gateway list` has no Serena upstream, `claude mcp list` has no `diana-gw-serena`, and `diana claude --help` has no `--serena` flag. Symbol tools are therefore unavailable in sessions; re-adding the upstream is an external change that needs Roman's approval. The official Claude plugin source sits at `~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/serena` (not enabled).
+
 Choose one mode; do not load or execute the other procedures unless needed:
 
 | Intent | Read |
