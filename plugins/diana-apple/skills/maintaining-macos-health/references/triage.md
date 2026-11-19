@@ -64,10 +64,11 @@ Start every disk-driven cleanup with `mo clean --dry-run` and `mo purge --dry-ru
 
 1. **Always `du -x`.** `~/Library/Developer/CoreDevice/DeviceFS` is an fskit `devicefs` mount of connected iPhones; plain `du` reported 272 GB of *phone* storage as local and sent the audit down a false lead. Before naming any directory as a hog, check `mount | grep -v '^/dev/disk3'` for mounts inside it.
 2. **`du -sh *` silently drops entries.** Under TCC, entries fail with no output line, so per-entry sums came out far below the parent total (`~/src` 185 GB → listing showed ~85). Measure with a per-entry loop that prints every name, and report `Operation not permitted` dirs (`MobileSync` = iPhone backups, `CloudDocs`, `FileProvider`, `Knowledge`) as **unmeasured**, never as small.
-3. **One parallel pass, not a dozen serial ones.** Run a single background scan of all roots (`~/src`, `~/Library/Application Support`, `~/Library/Developer`, `~/.cache`, model dirs, Docker `system df`), then present the full list once. Serial probing made a simple cleanup take an hour.
+3. **One parallel pass, not a dozen serial ones.** Run a single background scan of all roots (`~/src`, `~/Library/Application Support`, `~/Library/Developer`, `~/.cache`, `/private/tmp`, model dirs, Docker `system df`), then present the full list once. Serial probing made a simple cleanup take an hour.
+4. **APFS clones are not free space.** `du` counts every clone as a full copy, so simulator devices (`CoreSimulator`, `XCTestDevices`), `Deleting-*` leftovers and copied DerivedData look many times larger than what deleting them returns. Take real usage from `diskutil apfs list` (Capacity In Use / Not Allocated) and a candidate's contribution from `df` before and after removing it — never from its `du`.
 
 ```bash
-for r in ~/src ~/"Library/Application Support" ~/Library/Developer ~/.cache ~/Library/Caches; do
+for r in ~/src ~/"Library/Application Support" ~/Library/Developer ~/.cache ~/Library/Caches /private/tmp; do
   ( for d in "$r"/* "$r"/.[!.]*; do [ -e "$d" ] || continue
       kb=$(du -skx "$d" 2>/dev/null | cut -f1); echo "${kb:-UNMEASURED}	$d"; done ) &
 done; wait
