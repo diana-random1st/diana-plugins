@@ -7,126 +7,38 @@ allowed-tools:
 
 # Publish Artifacts
 
-Deploy files to S3 bucket with automatic CloudFront CDN invalidation.
+Upload files to Roman's personal site bucket and invalidate the CloudFront cache.
+Publishing is an external action: get Roman's explicit OK for each publish.
 
-## Configuration
+## Target: random1st.click (personal)
 
-Set these before use:
-- `BUCKET` — S3 bucket name
-- `DISTRIBUTION_ID` — CloudFront distribution ID
-- `AWS_PROFILE` — AWS CLI profile name
-
-## When to Use
-
-- Publishing HTML artifacts/pages to the web
-- Uploading images or assets
-- Deploying static files
-- Making files publicly accessible via CDN
-
-## How to Use
-
-### Trigger Phrases
-
-- "publish to $BUCKET"
-- "upload to s3"
-- "deploy artifact"
-- `/publish <file-path> [destination-path]`
-
-### Examples
-
-```
-Publish index.html to the root
+```bash
+export AWS_PROFILE=random1st BUCKET=random1st.click DISTRIBUTION_ID=E1FWJFFMXKIDEB
 ```
 
-```
-Upload build/output.html as demo.html
-```
+Public URL = `https://random1st.click/<destination>`.
 
-```
-Deploy the artifact at /tmp/chart.png to images/chart.png
-```
+**Work content does not go here.** Pregmate/Quandex internal pages are published as Cloudflare
+Workers Static Assets behind Cloudflare Access (Quandex people): Terraform in
+`~/src/pm/pregmate-infra/cloudflare/` (e.g. `support_guide.tf`), worked example with deploy and
+verification steps in `~/Customer-Support-Overview/publish/README.md`.
 
 ## Workflow
 
-1. **Upload to S3**:
-   ```bash
-   AWS_PROFILE=$AWS_PROFILE aws s3 cp <local-file> s3://$BUCKET/<destination> \
-     --content-type <mime-type>
-   ```
-
-2. **Invalidate CloudFront Cache**:
-   ```bash
-   AWS_PROFILE=$AWS_PROFILE aws cloudfront create-invalidation \
-     --distribution-id $DISTRIBUTION_ID \
-     --paths "/<destination>"
-   ```
-
-3. **Return Public URL**:
-   ```
-   https://$BUCKET/<destination>
-   ```
-
-## Content Types
-
-Automatically detect and set appropriate Content-Type:
-- `.html` → `text/html`
-- `.css` → `text/css`
-- `.js` → `application/javascript`
-- `.json` → `application/json`
-- `.png` → `image/png`
-- `.jpg/.jpeg` → `image/jpeg`
-- `.gif` → `image/gif`
-- `.svg` → `image/svg+xml`
-- `.pdf` → `application/pdf`
-- `.webp` → `image/webp`
-
-## Commands Reference
-
-### Upload Single File
 ```bash
-AWS_PROFILE=$AWS_PROFILE aws s3 cp <file> s3://$BUCKET/<path> --content-type <type>
+# 1. Upload (Content-Type is guessed from the extension; pass --content-type only to override)
+aws s3 cp <local-file> "s3://$BUCKET/<destination>"
+#    directory: aws s3 sync <dir> "s3://$BUCKET/<prefix>/"   (add --delete only for a prefix you own:
+#    it removes remote files missing locally)
+
+# 2. Invalidate the changed paths ("/*" only when many files changed)
+aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/<destination>"
+
+# 3. Verify, then return the URL
+aws cloudfront get-invalidation --distribution-id "$DISTRIBUTION_ID" --id <invalidation-id> --query Invalidation.Status
+python3 -c "import urllib.request as u;print(u.urlopen(u.Request('https://random1st.click/<destination>',method='HEAD'),timeout=15).status)"
 ```
 
-### Upload Directory
-```bash
-AWS_PROFILE=$AWS_PROFILE aws s3 sync <dir> s3://$BUCKET/<path>/ --delete
-```
-
-### Invalidate Specific Path
-```bash
-AWS_PROFILE=$AWS_PROFILE aws cloudfront create-invalidation \
-  --distribution-id $DISTRIBUTION_ID \
-  --paths "/<path>"
-```
-
-### Invalidate All (use sparingly)
-```bash
-AWS_PROFILE=$AWS_PROFILE aws cloudfront create-invalidation \
-  --distribution-id $DISTRIBUTION_ID \
-  --paths "/*"
-```
-
-### List Bucket Contents
-```bash
-AWS_PROFILE=$AWS_PROFILE aws s3 ls s3://$BUCKET/ --recursive
-```
-
-### Check Invalidation Status
-```bash
-AWS_PROFILE=$AWS_PROFILE aws cloudfront get-invalidation \
-  --distribution-id $DISTRIBUTION_ID \
-  --id <invalidation-id>
-```
-
-## Tips
-
-- Use descriptive destination paths: `demos/2024/chart.html` not `file1.html`
-- Set cache-control headers for long-lived assets
-- Invalidations can take 1-2 minutes to propagate globally
-- Each invalidation of paths >1000 costs $0.005 per path
-
-## Example: random1st.click
-
-- BUCKET: `random1st.click`
-- DISTRIBUTION_ID: `E1FWJFFMXKIDEB`
-- AWS_PROFILE: `random1st`
+Use descriptive destination paths (`demos/2026/chart.html`, not `file1.html`). Flags:
+[aws s3 cp](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html) ·
+invalidation behaviour and pricing: [CloudFront invalidation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html).

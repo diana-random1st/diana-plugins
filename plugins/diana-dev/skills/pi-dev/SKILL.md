@@ -1,6 +1,6 @@
 ---
 name: pi-dev
-description: "Delegate hands-on coding (implement, fix, refactor, tests, scaffolding, bulk codegen) to the local pi agent on LM Studio — free, offline, private. NOT for research, code review, or top-tier cloud reasoning."
+description: "Delegate hands-on coding (implement, fix, refactor, tests, scaffolding, bulk codegen) to the local pi agent on a local model (Feynt or LM Studio) — free, offline, private. NOT for research, code review, or top-tier cloud reasoning."
 triggers: ["delegate to pi", "let pi do it", "пусть pi сделает", "отдай это pi", "делегируй pi разработку"]
 contracts:
   mandatory_tools: [Bash]
@@ -12,7 +12,7 @@ contracts:
 
 # pi-dev — Delegate development to the local pi agent
 
-Hand implementation work to **pi** (Earendil coding agent) running locally on **Ornith-1.0-35B GGUF Q8_0** (DeepReinforce, Qwen3.5-MoE 256e/8-active, agentic-coding RL) via LM Studio. Zero cost, fully local, private, works offline (75.6 SWE-bench Verified, reasoning model with `<think>`, 256k ctx, MoE → ~3-4B active per token so fast). `qwen/qwen3-coder-next` 80B remains available as a fallback via `--model`. Strong for routine dev — but it is a local model, so **its output is reviewed, never trusted blindly.**
+Hand implementation work to **pi** (Earendil coding agent) running on a local model. Zero cost, fully local, private, works offline. Strong for routine dev — but it is a local model, so **its output is reviewed, never trusted blindly.**
 
 ## When to use
 - A well-scoped feature, bug fix, refactor, scaffold, or test/boilerplate writing.
@@ -27,15 +27,15 @@ Hand implementation work to **pi** (Earendil coding agent) running locally on **
 
 ## Preconditions (check once per session)
 ```bash
-lms ps | grep -q ornith || lms load ornith-1.0-35b -y --gpu max   # model resident
-lms server start                                                  # idempotent; pi's lmstudio provider needs it
+pi --list-models        # a local provider must be listed: feynt (Feynt tray app, 127.0.0.1:19234) or lmstudio
+lms ls                  # LM Studio models on disk, if you route through lmstudio
 ```
-pi's default provider/model (`lmstudio` / `ornith-1.0-35b`) is already set in `~/.pi/agent/settings.json`. Fallback: `pi --model qwen/qwen3-coder-next -p "..."`.
+State on 2026-11-18: the Ornith-1.0-35B GGUF and the other LM Studio chat models were deleted in the 2026-11-16 disk cleanup (`lms ls` shows only an embedding model), and `~/.pi/agent/settings.json` defaults to provider `junie`, which `pi --list-models` does not list. The only local provider is `feynt/local` (32k ctx) — start the Feynt app, then pass the model explicitly: `pi --model feynt/local -p "..."`. `kimi-coding/*` is listed too, but it is cloud, not local.
 
 ## How to delegate
 Run pi non-interactively **inside the target directory** — pi has read/bash/edit/write and acts on the cwd:
 ```bash
-cd <project-dir> && pi -p "<precise task>"
+cd <project-dir> && pi --model feynt/local -p "<precise task>"   # explicit model until a working default is set
 ```
 - Give pi a **concrete spec**: which files, what behavior, acceptance criteria.
   - Bad: `"improve the parser"`.
@@ -48,7 +48,7 @@ cd <project-dir> && pi -p "<precise task>"
 ## After pi returns — MANDATORY
 1. **List changes:** `git -C <dir> status --porcelain && git -C <dir> diff`.
 2. **Validate:** run the project's own gate — `pytest -q` / `ruff check` / `tsc` / `cargo check`.
-3. **Opus reviews the diff:** pi is a local model (~75% SWE-bench) — check correctness, edge cases, hallucinated APIs, and that it did not overreach scope. Fix inline or re-delegate with a tighter spec.
+3. **Opus reviews the diff:** pi runs a local model — check correctness, edge cases, hallucinated APIs, and that it did not overreach scope. Fix inline or re-delegate with a tighter spec.
 4. **Report:** files changed · test/lint result (actual output) · your review verdict.
 
 ## Safety

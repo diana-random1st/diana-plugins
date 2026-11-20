@@ -30,7 +30,7 @@ Read the matching section in [references/modes.md](references/modes.md) before w
 3. **State the IFR.** "The useful function is delivered, the harm is gone, with no new cost." Use it as the target — solutions are ranked by how close they get.
 4. **Mine resources.** List what already exists, unused, in the system and its surroundings — substances, fields, space, time, information, byproducts. The best solution uses a free resource.
 5. **Get candidate principles.**
-   - Technical contradiction → map A and B to the 39 parameters, look up the cell in the contradiction matrix → 3–4 principles. See [references/principles.md](references/principles.md).
+   - Technical contradiction → map A and B to the 39 parameters and read the cell in the contradiction matrix (https://www.triz40.com/aff_Matrix_TRIZ.php) → 3–4 principle numbers; meanings at https://www.triz40.com/aff_Principles_TRIZ.php.
    - Physical contradiction → apply **separation** (in time / in space / on condition / between system and parts) — see modes.md.
 6. **Generate ≥3 concrete solution directions** by reading each suggested principle against the problem. Keep them genuinely distinct.
 7. **Rank by ideality** = (sum of benefits) / (cost + harm). Prefer the direction that removes the contradiction over the one that balances it.
@@ -46,6 +46,5 @@ Report: **System → Contradiction (typed) → IFR → Resources → Principles 
 
 ## Reference
 
-- 40 principles + 39 parameters + how to read the matrix: [references/principles.md](references/principles.md)
 - Per-mode steps and worked examples: [references/modes.md](references/modes.md)
-- Full contradiction matrix online: https://www.triz40.com/aff_Principles_TRIZ.php
+- 40 principles: https://www.triz40.com/aff_Principles_TRIZ.php · 39×39 matrix: https://www.triz40.com/aff_Matrix_TRIZ.php

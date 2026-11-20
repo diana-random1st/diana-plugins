@@ -2,6 +2,8 @@
 
 ## App Store Connect API key roles
 
+Endpoint shapes and fields: [App Store Connect API reference](https://developer.apple.com/documentation/appstoreconnectapi).
+
 - Developer-role keys can deliver builds, but may be forbidden from metadata,
   tester, compliance, and review-submission operations.
 - App Manager is the normal automation role for metadata and review submission.

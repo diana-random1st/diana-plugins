@@ -1,86 +1,41 @@
 ---
 name: langgraph-agent
 description: >
-  Create new LangGraph agents following established patterns. Use when asked to create a new agent, graph, or node pipeline. Triggers: 'create agent', 'new agent', 'new graph', 'add agent', 'langgraph agent', 'новый агент', 'создать агента'.
+  Create a new LangGraph agent graph in agentic-claim-os (services/agents) following its patterns — state, nodes, routing, HITL, orchestrator registration. Triggers: 'langgraph agent', 'new graph', 'new LangGraph node pipeline', 'новый граф', 'агент на langgraph'. NOT for Claude Code subagents (use create-agents).
 ---
 
-# LangGraph Agent Creator
+# LangGraph Agent Creator — agentic-claim-os
 
-Project: `<project-root>/agents/src/agents/` · Base class: `graphs/base.py`
+Repo `~/src/svsg/agentic-claim-os`, agents in `services/agents/src/agents/graphs/`, base class `graphs/base.py` (`BaseAgentGraph`, `GraphConfig`, `node_logging`, `create_error_handler`).
 
-## Step 1: Clarify before generating
+**The repo's own skills are the primary source** and win on any conflict with this file: `.claude/skills/new-agent` (spec → plan, no code), `agent-best-practices` (node/state/HITL/settings conventions), `post-change-checklist` (exact CI commands, live verification, PR rules). Generic LangGraph API: https://docs.langchain.com/oss/python/langgraph/overview.
 
-Ask in one message:
-1. **Agent name** (snake_case, e.g. `claim_validator`)
-2. **What it does** in one sentence
-3. **Nodes** needed (list or describe pipeline)
-4. **Needs HITL** (human-in-the-loop / resume after intervention)?
-5. **Uses LLM vision / browser?** (determines if context dict needed)
-6. **Delegates to sub-agents?** (orchestrator pattern)
-7. **Nodes call external APIs / LLMs?** (rate-limit / retry needed)
+## Step 1: Clarify in one message
 
-## Step 2: Choose pattern
+Agent name (snake_case) · what it does in one sentence · nodes · HITL (pause and resume)? · browser/vision (needs the context dict)? · delegates to sub-agents? · nodes call external APIs or LLMs (retry/rate limit)?
 
-| Pattern | When | Key trait | Example in codebase |
-|---------|------|-----------|---------------------|
-| **Simple pipeline** | Linear steps, no resume | Nodes only read/write state | `graphs/three_cs_extractor/` |
-| **HITL** | Can pause for human, resume from checkpoint | `set_conditional_entry_point`, context dict | `cua/` |
-| **Multi-agent orchestrator** | One graph delegates work to N specialist subgraphs | Parent invokes child graphs via `invoke()` | — |
-| **Robust node** | Any node calling external API / LLM that may rate-limit | `@retry` + `@limits` decorator on node | — |
+## Step 2: Pattern
 
-Patterns compose: HITL + robust nodes, orchestrator + data contracts — all valid combos.
+| Pattern | When | Example |
+|---------|------|---------|
+| Simple pipeline | linear, no resume | `graphs/three_cs_extractor/` |
+| HITL | pause for a human, resume from checkpoint | `src/agents/cua/graph/agent.py` (context dict, conditional entry); `graphs/ford_labor_lookup/` (intervention route) |
+| Orchestrator | parent invokes specialist subgraphs | `graphs/master_orchestrator/` |
+| Robust node | external API / LLM that may rate-limit | `@retry` + `@limits` on the node |
 
-## Step 3: Generate files
+Patterns compose.
 
-Target: `<project-root>/agents/src/agents/graphs/{agent_name}/`
+## Step 3: Generate
 
-```
-{agent_name}/
-├── __init__.py         # export: {AgentName}Graph, {AgentName}State
-├── agent.py            # {AgentName}Graph(BaseAgentGraph)
-├── config.py           # {AgentName}Settings + get_{agent_name}_settings()
-├── models.py           # State TypedDict, Input/Result Pydantic models
-├── prompts.py          # SYSTEM_PROMPT (if LLM used)
-└── nodes/
-    ├── __init__.py     # export all node functions
-    └── {node}.py       # one file per node
-```
+`graphs/{agent_name}/`: `__init__.py` (export Graph + State), `agent.py`, `config.py` (pydantic-settings, `{AGENT_NAME}_` prefix), `models.py`, `prompts.py` if an LLM is used, `nodes/` one file per node. Code templates: [references/api_reference.md](references/api_reference.md).
 
-**Multi-agent orchestrator** adds:
-```
-{orchestrator_name}/
-└── specialists/        # one subgraph per specialist domain
-    ├── validator/
-    ├── analyzer/
-    └── reporter/
-```
+Key rules: nodes return only changed fields · every router checks `state.get("error")` first · `@node_logging()` on every node · config never hardcoded.
 
-See **[api_reference.md](references/api_reference.md)** for complete code templates.
+## Step 4: Register and verify
 
-## Key rules
-
-- **Nodes return only changed fields** — LangGraph merges, not replaces
-- **Error check first in every router**: `if state.get("error"): return "error"`
-- **`@node_logging()` on every node** — no exceptions
-- **Context dict** — needed only for browser/vision agents (HITL pattern); in simple pipeline nodes take only `state`
-- **Config always pydantic-settings** with `ENV_PREFIX_` — never hardcode values
-- **`__init__.py`** must export Graph class + State for orchestrator registration
-
-## Step 4: Verify
+Export from `graphs/__init__.py`, register in `register_default_agents()` in `src/agents/initialization.py`. Tests go in `services/agents/tests/unit/graphs/{agent_name}/`. Then, from the repo root:
 
 ```bash
-cd <project-root>/agents
-uv run ruff check src/agents/graphs/{agent_name}/
-uv run mypy src/agents/graphs/{agent_name}/
-uv run pytest tests/unit/test_{agent_name}.py -v
+uv run ruff format --check . && uv run ruff check . && make mypy
+(cd services/agents && uv run pytest tests/unit -q)
 ```
-
-Register new graph in orchestrator: `<project-root>/agents/src/agents/orchestrator/`
-
-## Example: agentic-claim-os Project
-
-In the agentic-claim-os project:
-- Project root: `services/agents/`
-- Agents: `services/agents/src/agents/graphs/`
-- Base class: `services/agents/src/agents/graphs/base.py`
-- Orchestrator: `services/agents/src/agents/orchestrator/`

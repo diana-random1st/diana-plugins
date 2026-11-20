@@ -1,66 +1,31 @@
 ---
 name: diana-security-audit
-description: Comprehensive security audit of codebase or specific files. OWASP, dependency vulnerabilities, secrets detection, threat modeling. Triggers on 'security audit', 'security scan', 'vulnerability check', 'pentest review'.
+description: Deep security audit of a codebase or files — scanners via security-scan, full-history secrets, dependency CVEs, OWASP Top 10 code pass, agent-config leaks, threat model, verified report. Triggers on 'security audit', 'security scan', 'vulnerability check', 'pentest review'.
 ---
 
 # Diana Security Audit
 
-Deep security analysis following OWASP methodology and DevSecOps best practices.
+For a diff review use `diana-review`; this is the deep pass.
 
-## Steps
+1. **Frame.** `recall` earlier audits of this target in Hindsight (`bank_id: diana`). Create a tracker card. Scope: named files, recent changes (`git log --oneline -20`), or the whole repo.
 
-1. **Scope definition**:
-   - Specific files → audit those
-   - No files specified → audit recent changes (`git log --oneline -20`)
-   - Full audit → scan entire project structure
+2. **Scanners.** Run the `security-scan` skill (semgrep, trivy, gitleaks; SARIF, severity gating, waivers). Infra and deploy surfaces → `infra-scan`.
 
-2. **Dependency audit**:
-   - Rust: `cargo audit`
-   - Python: `uv pip audit` or `pip-audit`
-   - Node: `bun audit` or `npm audit`
-   - Report: CVE IDs, severity, affected packages, fix versions
-
-3. **Static analysis — OWASP Top 10**:
-   - **A01 Broken Access Control**: auth checks, RBAC, IDOR
-   - **A02 Cryptographic Failures**: weak crypto, plaintext secrets, insecure protocols
-   - **A03 Injection**: SQL, command, LDAP, XSS, template injection
-   - **A04 Insecure Design**: missing threat model, business logic flaws
-   - **A05 Security Misconfiguration**: debug mode, default creds, overly permissive CORS
-   - **A06 Vulnerable Components**: outdated deps (from step 2)
-   - **A07 Auth Failures**: weak passwords, missing MFA, session issues
-   - **A08 Data Integrity**: deserialization, unsigned updates, CI/CD poisoning
-   - **A09 Logging Failures**: missing audit trail, PII in logs
-   - **A10 SSRF**: unvalidated URLs, internal network access
-
-4. **Secrets scan**:
-   - Grep for patterns: API keys, tokens, passwords, connection strings
-   - Check: `.env` committed? `.gitignore` complete? Secrets in config files?
-   - Check git history: `git log -p --all -S "password\|secret\|api_key" -- . | head -100`
-
-5. **Report format**:
+3. **Secrets, whole history.** Values stay redacted, never copied into the report:
+   ```bash
+   gitleaks git --redact --no-banner -f json -r /tmp/gitleaks-history.json .
    ```
-   ## Security Audit Report
+   Also check `.gitignore` covers `.env*`, keys, local settings.
 
-   **Scope**: [files/project]
-   **Date**: [date]
-   **Risk Level**: [CRITICAL|HIGH|MEDIUM|LOW]
-
-   ### Findings
-
-   #### 🔴 CRITICAL
-   [finding with file:line, description, impact, fix]
-
-   #### 🟡 HIGH
-   ...
-
-   #### 🔵 MEDIUM
-   ...
-
-   ### Dependencies
-   [CVE list]
-
-   ### Recommendations
-   1. [prioritized actions]
+4. **Agent-config leaks.** `permissions.allow` entries in `.claude/settings*.json` capture literal tokens from approved commands; MCP and Codex configs carry tokens too. Prints file:line, rule, masked value and exposure (tracked, ignored, GitHub visibility); exit 1 = findings:
+   ```bash
+   ~/.agents/skills/diana-security-audit/scripts/agent_config_leaks.py --root . --history
    ```
 
-6. **Save to memory**: Key findings and patterns to beliefs for future reference.
+5. **Dependencies.** `cargo audit` · `uv audit --frozen` · `bun audit` or `npm audit` → CVE, severity, package, fixed version.
+
+6. **Code pass.** Write the threat model in 5 lines first (assets, entry points, trust boundaries), then hunt where they meet. Sources: OWASP Top 10, current edition (https://top10.owasp.org/) · ASVS for requirement-level depth (https://asvs.owasp.org/) · fixes (https://cheatsheetseries.owasp.org/)
+
+7. **Verify.** Reproduce each CRITICAL/HIGH (probe, test, PoC on a local copy). High-stakes verdicts → `tribunal`.
+
+8. **Report.** Scope, date, overall risk; findings by severity with file:line, impact, fix, [VERIFIED]/[INFERRED]; CVE list; prioritized actions. Durable lessons → `retain` (tag `infra`).

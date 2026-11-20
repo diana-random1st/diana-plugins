@@ -4,6 +4,7 @@ Ten tiers, ordered by risk and reward. Always start at the lowest, only escalate
 
 ## Table of contents
 
+- [Coding-agent residue (check first where agents run)](#coding-agent-residue-check-first-where-agents-run)
 - [Tier 1 — Trivial wins (~25 GB, zero risk)](#tier-1--trivial-wins-25-gb-zero-risk)
 - [Tier 2 — Package manager caches (~10 GB)](#tier-2--package-manager-caches-10-gb)
 - [Tier 3 — Electron caches (~4 GB)](#tier-3--electron-caches-4-gb)
@@ -26,6 +27,31 @@ df -h /System/Volumes/Data
 date "+%Y-%m-%d %H:%M:%S"
 # For tiers 3 (Electron caches) and 4 (JetBrains): close the apps first.
 ```
+
+---
+
+## Coding-agent residue (check first where agents run)
+
+Coding agents (Claude Code, Codex, local release runs) leave per-task copies that no cache
+cleaner knows about. On one machine they were the largest consumer in two incidents
+(Nov 2026): `/private/tmp` at 85 and 173 GB — per-task Xcode DerivedData copies (`/tmp/*-dd`),
+task workspaces and detached worktrees, and 29 GB of raw API request/response dumps in 51k
+JSON files.
+
+- Measure `/private/tmp` entry by entry with the loop in `triage.md`; `ls -ltr /private/tmp`
+  shows what is old.
+- A directory is a candidate only when nothing holds it open
+  (`lsof -nP 2>/dev/null | grep -F "/private/tmp/<dir>/"` prints nothing) and it is older than
+  every running agent session. Parallel sessions share the machine — a fresh directory may be
+  another session's live build.
+- Git worktrees (`<repo>/.claude/worktrees/agent-*`, `/tmp/<task>/code`): list with
+  `git worktree list`, remove with `git worktree remove <path>`, and `git worktree prune` the
+  ones already deleted; an `rm -rf` of the directory leaves a dangling admin entry in the repo.
+- Agent browser profiles (`~/.cache/*-cdp-*`) and Playwright `code_sign_clone` copies
+  (`mole-techniques.md`) regenerate while the browser is closed.
+- Delete directories through `assets/apply-cleanup-selection.py` like any other candidate (it
+  accepts `/private/tmp`); worktrees go through `git worktree remove`, which the helper does not
+  run.
 
 ---
 
@@ -79,7 +105,7 @@ done
 All regenerate on next build. Use the tool's own cleanup command when available — they handle index integrity better than `rm`.
 
 ```bash
-# Node per-invocation package cache (heavy)
+# npm npx (per-invocation packages — heavy)
 rm -rf ~/.npm/_npx
 
 # Playwright/Puppeteer old browser versions
@@ -102,8 +128,8 @@ rm -rf ~/.gradle/wrapper/dists ~/.gradle/jdks/*.tar.gz ~/.gradle/jdks/*.zip
 # Cargo source tarballs
 rm -rf ~/.cargo/registry/src
 
-# Bun
-command -v bun >/dev/null && bun pm cache rm
+# Bun (`bun pm cache rm` exits 1 outside a dir with package.json — remove the cache dir instead)
+rm -rf ~/.bun/install/cache
 
 # opencode (logs only — NOT opencode.db chat history)
 rm -rf ~/.cache/opencode/packages ~/.cache/oh-my-opencode

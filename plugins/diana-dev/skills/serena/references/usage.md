@@ -14,14 +14,10 @@ do not assume a remembered binary or home-directory path.
 
 ## Daily launch
 
-```bash
-diana claude --serena
-diana claude --serena -- --resume <session-id>
-diana claude
-```
-
-`--serena` applies the Serena-oriented system-prompt override. Without it, the
-MCP tools may still be available, but adherence to symbolic navigation is lower.
+`diana claude --serena` (the Serena-oriented system-prompt override) no longer
+exists: `diana claude --help` lists no such flag as of 2026-11-18. Launch with
+plain `diana claude`; symbol tools are present only if `claude mcp list` shows
+`diana-gw-serena` Connected.
 
 Prefer semantic tools for symbol discovery, references, and targeted reads.
 After edits, rediscover affected symbols rather than reusing line/column

@@ -1,32 +1,48 @@
 #!/usr/bin/env python3
-"""ChatGPT Pro automation via Brave CDP. Reads prompt from stdin, prints response to stdout."""
+"""ChatGPT Pro automation in Brave Personal via Playwright MCP (Diana gateway).
+Reads prompt from stdin, prints response to stdout."""
 
 import sys
 import time
 
+from pwmcp import Browser
 
-def wait_for_completion(page, timeout=180):
+INPUTS = [
+    'div#prompt-textarea[contenteditable="true"]',
+    'div[contenteditable="true"][data-placeholder]',
+    'div[contenteditable="true"]',
+    'textarea[id="prompt-textarea"]',
+]
+ASSISTANT = [
+    '[data-message-author-role="assistant"] .markdown',
+    '[data-message-author-role="assistant"]',
+    "article:last-child .markdown",
+    "article:last-child",
+]
+
+
+def wait_for_completion(b, timeout=180):
     """Poll until streaming stops: stop-button disappears or text stabilises."""
     deadline = time.time() + timeout
+    stop = "() => !!document.querySelector('[data-testid=\"stop-button\"]')"
 
     # Phase 1: wait for generation to start (up to 10s)
     for _ in range(20):
-        if page.query_selector('[data-testid="stop-button"]'):
+        if b.evaluate(stop):
             break
         time.sleep(0.5)
 
     # Phase 2: wait for stop-button to disappear
     while time.time() < deadline:
-        if not page.query_selector('[data-testid="stop-button"]'):
+        if not b.evaluate(stop):
             return True
-        time.sleep(0.5)
+        time.sleep(1)
 
     # Phase 3 fallback: text stability check
     last = ""
     stable = 0
     while time.time() < deadline:
-        msgs = page.query_selector_all('[data-message-author-role="assistant"]')
-        cur = msgs[-1].inner_text() if msgs else ""
+        cur = extract_response(b)
         if cur and cur == last:
             stable += 1
             if stable >= 4:
@@ -39,87 +55,48 @@ def wait_for_completion(page, timeout=180):
     return False
 
 
-def extract_response(page):
-    for sel in [
-        '[data-message-author-role="assistant"] .markdown',
-        '[data-message-author-role="assistant"]',
-        "article:last-child .markdown",
-        "article:last-child",
-    ]:
-        els = page.query_selector_all(sel)
-        if els:
-            return els[-1].inner_text().strip()
-    return ""
+def extract_response(b):
+    return b.evaluate("""(sels) => {
+      for (const sel of sels) {
+        const els = document.querySelectorAll(sel);
+        if (els.length) return els[els.length - 1].innerText.trim();
+      }
+      return '';
+    }""", ASSISTANT) or ""
 
 
 def run(prompt: str) -> str:
-    from playwright.sync_api import sync_playwright
+    b = Browser("personal")
+    # Reuse the session's ChatGPT tab; a fresh conversation either way.
+    b.use_tab("chatgpt.com", "https://chatgpt.com/")
+    b.navigate("https://chatgpt.com/")
 
-    with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp("http://localhost:41922")
-        context = browser.contexts[0]
+    input_sel = b.run("""async (page, sels) => {
+      for (const sel of sels) {
+        try { await page.waitForSelector(sel, {timeout: 5000}); return sel; } catch (e) {}
+      }
+      return null;
+    }""", INPUTS)
+    if not input_sel:
+        raise RuntimeError(
+            "ChatGPT input field not found — is Brave Personal logged in to chatgpt.com?"
+        )
 
-        # Reuse existing ChatGPT tab or open new one
-        existing = [pg for pg in context.pages if "chatgpt.com" in pg.url]
-        if existing:
-            page = existing[0]
-            page.bring_to_front()
-            # Navigate to fresh conversation
-            page.goto("https://chatgpt.com/")
-        else:
-            page = context.new_page()
-            page.goto("https://chatgpt.com/")
+    # Click, clear, insert the whole prompt at once, send
+    b.run("""async (page, a) => {
+      await page.click(a.sel);
+      await page.keyboard.press('Meta+a');
+      await page.keyboard.insertText(a.prompt);
+      await page.waitForTimeout(500);
+      await page.keyboard.press('Enter');
+    }""", {"sel": input_sel, "prompt": prompt})
 
-        page.wait_for_load_state("domcontentloaded")
-        time.sleep(2)
+    if not wait_for_completion(b):
+        print("[chatgpt.py] WARNING: timed out waiting for response", file=sys.stderr)
 
-        # Find input field
-        input_sel = None
-        for sel in [
-            'div#prompt-textarea[contenteditable="true"]',
-            'div[contenteditable="true"][data-placeholder]',
-            'div[contenteditable="true"]',
-            'textarea[id="prompt-textarea"]',
-        ]:
-            try:
-                page.wait_for_selector(sel, timeout=5000)
-                if page.query_selector(sel):
-                    input_sel = sel
-                    break
-            except Exception:
-                continue
-
-        if not input_sel:
-            raise RuntimeError(
-                "ChatGPT input field not found — is Brave logged in to chatgpt.com?"
-            )
-
-        # Click, clear, type
-        page.click(input_sel)
-        time.sleep(0.3)
-        page.keyboard.press("Meta+a")
-        time.sleep(0.1)
-
-        # For large prompts write to clipboard and paste
-        page.evaluate(f"navigator.clipboard.writeText({repr(prompt)})")
-        page.keyboard.press("Meta+v")
-        time.sleep(0.5)
-
-        # Send
-        page.keyboard.press("Enter")
-
-        # Wait for response
-        ok = wait_for_completion(page)
-        if not ok:
-            print(
-                "[chatgpt.py] WARNING: timed out waiting for response", file=sys.stderr
-            )
-
-        time.sleep(0.5)
-        result = extract_response(page)
-
-        # Leave tab open (don't close — user may want to continue in browser)
-        return result
+    time.sleep(0.5)
+    # Leave tab open (don't close — user may want to continue in browser)
+    return extract_response(b)
 
 
 if __name__ == "__main__":

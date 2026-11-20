@@ -16,7 +16,16 @@ Credential boundary:
   and `APPLE_TEAM_ID`.
 + Stop with UNKNOWN when no authorized credential boundary exists.
 
-Keychain profile: `notarize-diana` (stored via `xcrun notarytool store-credentials`)
+Keychain profile: `notarize-diana` (stored via `xcrun notarytool store-credentials`).
+A repo's own script wins over the commands below — Diana Voice: `scripts/notarize.sh <dmg>`
+in `~/src/diana-voice` (its default profile `diana-voice` may be absent; pass
+`DIANA_VOICE_NOTARY_PROFILE=notarize-diana`).
+
+Preflight (read-only):
+```bash
+xcrun notarytool history --keychain-profile notarize-diana >/dev/null && echo "profile OK"
+security find-identity -v -p codesigning | grep -c 'Developer ID Application'
+```
 
 ## Commands
 
@@ -55,6 +64,8 @@ xcrun notarytool submit /tmp/binary.zip --keychain-profile "notarize-diana" --wa
 ```bash
 codesign -dvv <binary> 2>&1 | grep -E "Authority|TeamIdentifier"
 spctl --assess --type exec <binary>  # Gatekeeper check (apps only)
+xcrun stapler validate <app-or-dmg>  # ticket stapled
+spctl -a -t open --context context:primary-signature -vv <dmg>  # Gatekeeper check for a DMG
 ```
 
 ## Tauri Config
@@ -68,7 +79,7 @@ In `tauri.conf.json` → `bundle.macOS`:
 }
 ```
 
-Notarization triggers automatically when `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` env vars are set during `tauri build`.
+Notarization triggers automatically when `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` env vars are set during `tauri build` — see [Tauri macOS signing](https://v2.tauri.app/distribute/sign/macos/).
 
 ## Certificate Details
 
@@ -80,9 +91,12 @@ Notarization triggers automatically when `APPLE_ID`, `APPLE_PASSWORD`, and `APPL
 
 ## Troubleshooting
 
+Notary log rejections: [Apple — Resolving common notarization issues](https://developer.apple.com/documentation/security/resolving-common-notarization-issues).
+
 | Error | Cause | Fix |
 |-------|-------|-----|
 | "The signature of the binary is invalid" | Certificate expired or not trusted | Check `security find-identity -v` for valid certs |
 | Notarization rejected | Hardened runtime missing or forbidden entitlements | Ensure `--options runtime` flag; review entitlements |
 | "No identity found" | Developer ID cert not in keychain | Import via Keychain Access or `security import` |
 | Stapling fails on binary | Only .app/.dmg/.pkg can be stapled | For bare binaries, notarize only (stapling not supported) |
+| `bundle format unrecognized` on a SwiftPM `*_*.bundle` | Older SwiftPM emits a flat resource folder without `Info.plist` | Give it a minimal `Info.plist` before signing (`~/src/diana-voice/scripts/package-app.sh` does) |

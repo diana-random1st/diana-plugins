@@ -35,7 +35,7 @@ Do not retrieve or print vault secrets as part of the check.
 ## 4. Screenshots and device support
 
 - At least one valid screenshot for every required display family.
-- Current accepted App Store Connect dimensions, confirmed in the live UI/API.
+- Current accepted dimensions per [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications), confirmed in the live UI/API.
 - iPad screenshots when the submitted binary supports iPad.
 - Screenshots show current UI, contain no debug/private data, and match metadata.
 - Localized screenshots and metadata are complete for every locale being submitted.
@@ -54,7 +54,7 @@ the UI. Prefer capture from a matching simulator/device and inspect the result.
 
 ## 6. Product and review blockers
 
-Check the relevant Apple review risks:
+Check the relevant risks from the [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/):
 
 | Area | Evidence |
 | --- | --- |

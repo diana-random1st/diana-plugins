@@ -1,52 +1,37 @@
 ---
 name: diana-review
-description: Security-focused code review with secrets scanning and guard checks. Use when reviewing code changes, PRs, or before merging. Triggers on 'review', 'code review', 'check security'.
+description: Security-focused review of a diff — gitleaks, OWASP-grounded security pass, correctness, fit with the repo, findings report. Use when reviewing code changes, PRs, or before merging. Triggers on 'review', 'code review', 'check security'.
 ---
 
 # Diana Code Review
 
-Perform a comprehensive code review with security focus.
+1. **Scope.**
+   - Files named by the user → those.
+   - Uncommitted work (the usual case) → `git diff HEAD --stat`, then `git diff HEAD`.
+   - Branch → `git diff $(git merge-base HEAD origin/main)...HEAD`; PR number → `gh pr diff <n>`.
 
-## Steps
+   Read the repo's AGENTS.md / CLAUDE.md and any repo-local review skill or agent (`.claude/skills/*review*`, `agents/*review*`) first: they hold the project's rules.
 
-1. **Identify scope**: Determine what to review.
-   - If user specified files → review those files
-   - If no files specified → run `git diff --name-only HEAD~1` to get changed files
-   - For PR review → run `git diff $(git merge-base HEAD main)..HEAD --name-only`
-
-2. **Secrets scan**: Run `diana dev hook secrets-scan` on changed files to detect leaked credentials.
-   - If secrets found → STOP and report immediately. Do not continue review.
-
-3. **Security review** (spawn reviewer agent):
-   - OWASP Top 10 vulnerabilities
-   - Input validation and sanitization
-   - Authentication/authorization issues
-   - SQL injection, XSS, command injection
-   - Hardcoded credentials or tokens
-
-4. **Correctness review**:
-   - Edge cases and error handling
-   - Race conditions in async/concurrent code
-   - Null/undefined handling
-   - Off-by-one errors
-   - Resource leaks
-
-5. **Quality check**:
-   - Consistency with existing codebase patterns
-   - Unnecessary complexity or over-engineering
-   - Missing tests for new functionality
-   - Breaking changes without migration
-
-6. **Report**: Format findings as:
-   ```
-   🔴 CRITICAL: [file:line] description
-   🟡 WARNING: [file:line] description
-   🟢 SUGGESTION: [file:line] description
+2. **Secrets.** A leak → STOP and report before anything else:
+   ```bash
+   gitleaks git --pre-commit --redact --no-banner .            # working tree; add --staged for the index
+   gitleaks git --log-opts="<base>..HEAD" --redact --no-banner  # committed range
    ```
 
-## Memory Integration
+3. **Review.** For a large diff spawn a reviewer agent and hand it the diff, not your conclusions.
+   - Security: OWASP Top 10 (https://top10.owasp.org/), specifics in https://cheatsheetseries.owasp.org/.
+   - Correctness: edge cases, error paths, concurrency, resource leaks.
+   - Fit: local patterns, no over-engineering, tests for new behaviour, no unannounced breaking change.
 
-After review, save significant findings to beliefs:
-```
-belief__observe(name="Code review: [context]", category="decision", body="[findings]")
-```
+   Prove a suspected bug with a test or a probe run before calling it CRITICAL.
+
+4. **Report.** One line per finding, tagged [VERIFIED] (reproduced) or [INFERRED]:
+   ```
+   CRITICAL: file:line — issue — fix
+   WARNING: file:line — ...
+   SUGGESTION: file:line — ...
+   ```
+
+5. **Memory.** A durable lesson (trap, project rule) → Hindsight `retain`, `bank_id: diana`, tag `project` or `feedback`, one fact per call.
+
+Heavier: `/code-review` (built-in, effort levels), `crossreview` (several agents, blind), `tribunal` (multi-model arbitration for high-risk calls).
