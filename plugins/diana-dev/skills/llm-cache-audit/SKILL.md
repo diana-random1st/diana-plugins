@@ -21,7 +21,7 @@ Low `cached_tokens` despite a stable-looking prompt, TTFT complaints in agentic 
 **Grep pass (categories A–G).** Run it first, then review each hit by hand — it is regex, so expect false positives and misses:
 
 ```bash
-bash ~/.claude/skills/llm-cache-audit/scripts/grep_patterns.sh <repo-path>   # exit 0 = no hits
+bash ~/.agents/skills/llm-cache-audit/scripts/grep_patterns.sh <repo-path>   # exit 0 = no hits
 ```
 
 **3. Category A — volatile data in prompt prefix (cache-killer #1).** Grep for `datetime.now | time.time | uuid.uuid4 | trace_id | run_id | session_id` in system prompt assembly. User-specific fields (`user.name`, `tenant_id`) in system prompt prevent cross-user sharing. Rule: static content → earliest position; dynamic data → user message or metadata.
@@ -39,7 +39,7 @@ bash ~/.claude/skills/llm-cache-audit/scripts/grep_patterns.sh <repo-path>   # e
 **9. Category G — observability.** Each agent step logs `cached_tokens` / `cache_read_input_tokens`. Hash of canonical prefix (`tools + system`) logged and stable. Alert fires when hit rate drops. CI smoke test fails when `cached_tokens` drop below floor. To prove drift between two captured request bodies:
 
 ```bash
-python3 ~/.claude/skills/llm-cache-audit/scripts/prefix_hash.py step1.json step2.json   # exit 2 = UNSTABLE prefix
+python3 ~/.agents/skills/llm-cache-audit/scripts/prefix_hash.py step1.json step2.json   # exit 2 = UNSTABLE prefix
 ```
 
 **10. Effective cost (if in scope).** `C = S·[(1−h)·P_miss + h·P_hit] + D·P_miss + O·P_out`. Anthropic cache write: `P_write = P_miss × 1.25` (5-min) or `× 2` (1-h). Extract S/D/O/h from logs.

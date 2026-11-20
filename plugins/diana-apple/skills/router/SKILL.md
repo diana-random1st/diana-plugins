@@ -9,7 +9,7 @@ Home router, WAP CLI over telnet at 192.168.1.1 (LAN only, `TELNETWanEnable="0"`
 Every call goes through one script; do not hand-write expect or telnet sessions.
 
 ```bash
-R=~/.claude/skills/router/scripts/router.py
+R=~/.agents/skills/router/scripts/router.py
 $R devices                                   # DHCP clients: IP, MAC, SSID/LAN port, host
 $R devices --json
 $R run "display sysinfo"                     # any WAP CLI command, verbatim

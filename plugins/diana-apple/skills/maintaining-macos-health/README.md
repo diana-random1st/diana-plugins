@@ -91,12 +91,12 @@ Manual run of the cleanup UI (without an agent):
 ```bash
 # 1. Build a data JSON yourself (see assets/render-cleanup-plan.py docstring for schema)
 # 2. Start the UI server:
-python3 ~/.claude/skills/maintaining-macos-health/assets/render-cleanup-plan.py /tmp/cleanup-data.json
+python3 ~/.agents/skills/maintaining-macos-health/assets/render-cleanup-plan.py /tmp/cleanup-data.json
 # 3. Browser opens to http://127.0.0.1:18347/. Tick checkboxes. Click Submit.
 # 4. Apply the selection (with --dry-run first):
-python3 ~/.claude/skills/maintaining-macos-health/assets/apply-cleanup-selection.py \
+python3 ~/.agents/skills/maintaining-macos-health/assets/apply-cleanup-selection.py \
   /tmp/cleanup-selection-<ts>.json --dry-run
-python3 ~/.claude/skills/maintaining-macos-health/assets/apply-cleanup-selection.py \
+python3 ~/.agents/skills/maintaining-macos-health/assets/apply-cleanup-selection.py \
   /tmp/cleanup-selection-<ts>.json
 ```
 
